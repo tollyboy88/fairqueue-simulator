@@ -1,0 +1,17 @@
+feature,importance,label
+breach_18w_rate,0.43,18-week breach rate
+dta_pressure,0.1066,Decision-to-admit pressure
+demand_pressure,0.0996,New demand pressure
+breach_52w_rate,0.0914,52-week long-wait rate
+fairness_age_score,0.0662,Age over-representation
+fairness_ethnicity_score,0.051,Ethnicity over-representation
+diagnostic_bottleneck,0.0502,Diagnostic >6-week bottleneck
+bed_pressure,0.0162,Bed occupancy
+ae_pressure_score,0.0153,A&E pressure
+fairness_sex_score,0.0138,Sex imbalance
+backlog_growth_rate,0.0136,Backlog growth
+fairness_deprivation_score,0.0124,Deprivation over-representation
+theatre_pressure,0.0112,Theatre capacity pressure
+cancellation_pressure,0.0108,Cancellation disruption
+missing_demographic_score,0.0103,Missing demographic data
+throughput_rate,0.0014,Throughput (completions)

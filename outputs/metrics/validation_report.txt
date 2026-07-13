@@ -1,0 +1,15 @@
+FairQueue Simulator — validation report
+rows(rtt)=41,515  rows(scores)=41,515  providers=152  specialties=23
+------------------------------------------------------------
+[PASS] no negative counts
+[PASS] breach_18w <= incomplete
+[PASS] breach_52w <= breach_18w
+[PASS] no duplicate provider-specialty-month
+[PASS] valid months (12)
+[PASS] normalised scores within 0..1
+[PASS] final score within 0..100
+[PASS] priority bands match score ranges
+[PASS] higher 52w breach -> higher waiting score (corr>0)
+[PASS] higher missing-demographic -> higher fairness score (corr>0)
+
+OVERALL: ALL PASS

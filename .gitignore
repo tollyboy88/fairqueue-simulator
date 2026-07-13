@@ -1,0 +1,17 @@
+# Data: keep structure, ignore heavy raw/interim/processed payloads
+Data.zip
+_staging/
+data/raw/
+data/interim/
+data/processed/*.parquet
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# OS / app
+.DS_Store
+.streamlit/secrets.toml

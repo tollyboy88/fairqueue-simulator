@@ -1,0 +1,21 @@
+provider_name,treatment_function_name,waiting_pressure_score,fairness_risk_score,operational_pressure_score,priority_score_100,priority_level
+WALSALL HEALTHCARE NHS TRUST,General Surgery Service,0.453,0.863,0.584,60.23,High
+SHEFFIELD CHILDREN'S NHS FOUNDATION TRUST,Oral Surgery Service,0.853,0.275,0.361,58.13,Moderate
+WALSALL HEALTHCARE NHS TRUST,Trauma and Orthopaedic Service,0.399,0.863,0.584,57.54,Moderate
+WALSALL HEALTHCARE NHS TRUST,Oral Surgery Service,0.357,0.863,0.584,55.4,Moderate
+NORTH BRISTOL NHS TRUST,Trauma and Orthopaedic Service,0.432,0.695,0.578,53.99,Moderate
+MID AND SOUTH ESSEX NHS FOUNDATION TRUST,Oral Surgery Service,0.713,0.065,0.815,53.91,Moderate
+MID AND SOUTH ESSEX NHS FOUNDATION TRUST,Trauma and Orthopaedic Service,0.705,0.065,0.815,53.48,Moderate
+WALSALL HEALTHCARE NHS TRUST,Other - Medical Services,0.31,0.863,0.584,53.09,Moderate
+HULL UNIVERSITY TEACHING HOSPITALS NHS TRUST,Plastic Surgery Service,0.725,0.072,0.718,52.77,Moderate
+WALSALL HEALTHCARE NHS TRUST,Other - Surgical Services,0.303,0.863,0.584,52.75,Moderate
+NORTH BRISTOL NHS TRUST,Plastic Surgery Service,0.406,0.695,0.578,52.7,Moderate
+WALSALL HEALTHCARE NHS TRUST,Rheumatology Service,0.299,0.863,0.584,52.52,Moderate
+MID AND SOUTH ESSEX NHS FOUNDATION TRUST,Ear Nose and Throat Service,0.681,0.065,0.815,52.3,Moderate
+WALSALL HEALTHCARE NHS TRUST,Ear Nose and Throat Service,0.294,0.863,0.584,52.27,Moderate
+WALSALL HEALTHCARE NHS TRUST,Dermatology Service,0.289,0.863,0.584,52.02,Moderate
+BIRMINGHAM WOMEN'S AND CHILDREN'S NHS FOUNDATION TRUST,Other - Surgical Services,0.586,0.373,0.567,51.81,Moderate
+BIRMINGHAM WOMEN'S AND CHILDREN'S NHS FOUNDATION TRUST,Urology Service,0.574,0.373,0.567,51.23,Moderate
+CHESTERFIELD ROYAL HOSPITAL NHS FOUNDATION TRUST,General Surgery Service,0.751,0.088,0.549,51.17,Moderate
+WALSALL HEALTHCARE NHS TRUST,Gynaecology Service,0.27,0.863,0.584,51.07,Moderate
+MID AND SOUTH ESSEX NHS FOUNDATION TRUST,Plastic Surgery Service,0.656,0.065,0.815,51.03,Moderate
