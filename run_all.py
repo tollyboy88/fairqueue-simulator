@@ -1,24 +1,43 @@
-"""
-run_all.py — run the full FairQueue pipeline end to end.
-Usage:  python run_all.py
-(RTT and operational steps cache per-month/per-source, so re-runs are fast.)
-"""
-import subprocess, sys
+"""Run the complete FairQueue 2.0 research pipeline."""
+import argparse
+import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 STEPS = [
-    "01_extract_data.py", "02_clean_rtt.py", "03_clean_wlmds.py",
-    "04_clean_operational.py", "05_build_features.py", "06_scoring_engine.py",
-    "07_simulation_engine.py", "08_validation_checks.py", "09_make_charts.py",
-    "10_build_static_dashboard.py", "11_build_notebook.py", "12_train_model.py",
+    "01_download_longitudinal_data.py",
+    "02_clean_rtt.py",
+    "03_clean_wlmds_longitudinal.py",
+    "04_clean_operational.py",
+    "05_build_longitudinal_features.py",
+    "06_build_future_targets.py",
+    "07_train_forecasting_models.py",
+    "08_temporal_evaluation.py",
+    "09_build_equity_indicators.py",
+    "10_equity_constrained_ranking.py",
+    "11_ablation_analysis.py",
+    "12_robustness_analysis.py",
+    "13_make_paper_outputs.py",
+    "14_build_dashboard.py",
 ]
-for s in STEPS:
+
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--skip-download", action="store_true",
+    help="Reuse files already listed in data/source_manifest.csv.",
+)
+args = parser.parse_args()
+steps = STEPS[1:] if args.skip_download else STEPS
+
+for s in steps:
     print(f"\n=== {s} ===")
     r = subprocess.run([sys.executable, str(ROOT / "src" / s)])
     if r.returncode != 0:
         print(f"!! {s} failed (exit {r.returncode}); stopping.")
         sys.exit(r.returncode)
 print("\nPipeline complete. View results:")
-print("  • outputs/FairQueue_Dashboard.html   (open in a browser)")
-print("  • streamlit run app/streamlit_app.py  (interactive 6-page app)")
+print("  - outputs/FairQueue_2_Dashboard.html")
+print("  - outputs/metrics/test_model_metrics.csv")
+print("  - outputs/metrics/equity_utility_tradeoff.csv")
+print("  - streamlit run app/streamlit_app.py")

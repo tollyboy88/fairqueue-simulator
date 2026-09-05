@@ -15,3 +15,8 @@ venv/
 # OS / app
 .DS_Store
 .streamlit/secrets.toml
+
+# Local recovery archive and rendered proof images
+archive/
+submission/Health_Systems/_rendered/
+**/~$*.docx

@@ -1,0 +1,42 @@
+{
+  "selection_metric": "validation MAE",
+  "selected_model": "Random Forest",
+  "target": "observed provider-specialty 52-week breach rate at t+3",
+  "features": [
+    "breach_18w_rate",
+    "breach_52w_rate",
+    "dta_rate",
+    "demand_rate",
+    "throughput_rate",
+    "demand_throughput_ratio",
+    "backlog_growth_rate",
+    "breach_18w_rate_lag1",
+    "breach_18w_rate_lag3",
+    "breach_52w_rate_lag1",
+    "breach_52w_rate_lag2",
+    "breach_52w_rate_lag3",
+    "breach_52w_mom_change",
+    "breach_52w_trend3",
+    "breach_52w_acceleration",
+    "breach_52w_roll3",
+    "breach_52w_roll6",
+    "log_incomplete_total",
+    "month_sin",
+    "month_cos",
+    "diagnostic_over_6w_rate",
+    "bed_occupancy_rate",
+    "log_cancelled_operations",
+    "cancel_28day_breach_rate"
+  ],
+  "categorical_features": [
+    "treatment_function_code"
+  ],
+  "train_end": "2024-12-31",
+  "validation_end": "2025-06-30",
+  "test_feature_period": "2025-07 through 2026-03",
+  "test_target_period": "2025-10 through 2026-06",
+  "test_used_for_selection": false,
+  "n_train": 79191,
+  "n_validation": 16655,
+  "n_test": 24933
+}

@@ -1,151 +1,237 @@
-"""
-02_clean_rtt.py
----------------
-Build the RTT provider x specialty x month table from the 12 monthly
-NHS England RTT releases.
+"""Harmonise monthly full RTT extracts to provider x specialty x month.
 
-Outputs:
-    data/interim/rtt_cleaned/rtt_provider_specialty_month.parquet
-    data/processed/rtt_provider_specialty_month.parquet   (copy for modelling)
-
-Columns produced:
-    month, quarter, financial_year, region_code,
-    provider_code, provider_name,
-    treatment_function_code, treatment_function_name,
-    incomplete_total, total_within_18w, breach_18w_count, breach_52w_count,
-    dta_total, new_rtt_total, admitted_total, non_admitted_total
+The full CSVs contain commissioner-level rows. Counts are aggregated to
+provider and treatment-function level before features are calculated.
 """
-from pathlib import Path
-import glob
+from __future__ import annotations
+
+import argparse
+import re
 import sys
+import zipfile
+from pathlib import Path
+
+import numpy as np
 import pandas as pd
 
 sys.path.append(str(Path(__file__).resolve().parent))
-from utils import (RAW, INTERIM, PROCESSED, period_from_text,
-                   month_to_quarter, financial_year, is_total_tfc)  # noqa
+from utils import INTERIM, PROCESSED, RAW, financial_year, is_total_tfc, month_to_quarter, period_from_text  # noqa: E402
 
-RTT_DIR = RAW / "rtt" / "RTT REFERAL 2025-2026"
-
+START = pd.Period("2022-04", freq="M")
+END = pd.Period("2026-06", freq="M")
 KEYS = ["provider_code", "treatment_function_code"]
-RENAME_KEYS = {
-    "Region Code": "region_code",
-    "Provider Code": "provider_code",
-    "Provider Name": "provider_name",
-    "Treatment Function Code": "treatment_function_code",
-    "Treatment Function": "treatment_function_name",
+PART_MAP = {
+    "Part_2": "incomplete_total",
+    "Part_2A": "dta_total",
+    "Part_3": "new_rtt_total",
+    "Part_1A": "admitted_total",
+    "Part_1B": "non_admitted_total",
 }
 
 
-def _read(path, sheet, value_cols: dict):
-    """Read an RTT provider sheet (header on row 14) and keep key + value cols."""
-    df = pd.read_excel(path, sheet_name=sheet, header=13, engine="openpyxl")
-    df = df.rename(columns={**RENAME_KEYS, **value_cols})
-    keep = ["region_code", "provider_code", "provider_name",
-            "treatment_function_code", "treatment_function_name"] + list(value_cols.values())
-    keep = [c for c in keep if c in df.columns]
-    df = df[keep].copy()
-    # drop rows without a provider code and aggregate "Total" specialty rows
-    df = df[df["provider_code"].notna()]
-    df = df[~df.apply(lambda r: is_total_tfc(r["treatment_function_code"],
-                                             r.get("treatment_function_name")), axis=1)]
-    for v in value_cols.values():
-        if v in df.columns:
-            df[v] = pd.to_numeric(df[v], errors="coerce")
-    return df
+def month_from_text(text: str) -> pd.Period | None:
+    year, month = period_from_text(text)
+    return pd.Period(f"{year}-{month:02d}", freq="M") if year and month else None
 
 
-def _first(patt, folder):
-    hits = glob.glob(str(folder / patt))
-    return hits[0] if hits else None
-
-
-def process_month(folder: Path):
-    year, month = period_from_text(folder.name)
-    if not (year and month):
-        print(f"  ! could not parse period from {folder.name}; skipping")
-        return None
-    month_str = f"{year}-{month:02d}"
-
-    inc_path = _first("Incomplete-Provider*", folder)
-    adm_path = _first("Admitted-Provider*", folder)
-    nadm_path = _first("NonAdmitted-Provider*", folder)
-    new_path = _first("New-Periods-Provider*", folder)
-    if not inc_path:
-        print(f"  ! no Incomplete-Provider file in {folder.name}; skipping")
-        return None
-
-    inc = _read(inc_path, "Provider", {
-        "Total number of incomplete pathways": "incomplete_total",
-        "Total within 18 weeks": "total_within_18w",
-        "Total 52 plus weeks": "breach_52w_count",
-    })
-    dta = _read(inc_path, "Provider with DTA", {
-        "Total number of incomplete pathways with a decision to admit for treatment": "dta_total",
-    })[KEYS + ["dta_total"]]
-
-    df = inc.merge(dta, on=KEYS, how="left")
-
-    if adm_path:
-        adm = _read(adm_path, "Provider",
-                    {"Total number of completed pathways (all)": "admitted_total"})[KEYS + ["admitted_total"]]
-        df = df.merge(adm, on=KEYS, how="left")
-    if nadm_path:
-        nadm = _read(nadm_path, "Provider",
-                     {"Total number of completed pathways (all)": "non_admitted_total"})[KEYS + ["non_admitted_total"]]
-        df = df.merge(nadm, on=KEYS, how="left")
-    if new_path:
-        new = _read(new_path, "Provider",
-                    {"Number of new RTT clock starts during the month": "new_rtt_total"})[KEYS + ["new_rtt_total"]]
-        df = df.merge(new, on=KEYS, how="left")
-
-    df["breach_18w_count"] = (df["incomplete_total"] - df["total_within_18w"]).clip(lower=0)
-    df.insert(0, "month", month_str)
-    df.insert(1, "quarter", f"{month_to_quarter(month)} {financial_year(year, month)}")
-    df.insert(2, "financial_year", financial_year(year, month))
-    return df
-
-
-def main():
-    cache = INTERIM / "rtt_cleaned" / "by_month"
-    cache.mkdir(parents=True, exist_ok=True)
-    folders = sorted([p for p in RTT_DIR.iterdir() if p.is_dir()])
-    print(f"Found {len(folders)} RTT month folders")
-    for folder in folders:
-        year, month = period_from_text(folder.name)
-        tag = f"{year}-{month:02d}" if (year and month) else folder.name
-        cache_path = cache / f"rtt_{tag}.parquet"
-        if cache_path.exists():
-            print(f"- {folder.name}  (cached)")
+def archives() -> dict[pd.Period, Path]:
+    candidates: dict[pd.Period, list[Path]] = {}
+    for root in (RAW / "rtt", RAW / "rtt_longitudinal"):
+        if not root.exists():
             continue
-        print(f"- {folder.name}")
-        out = process_month(folder)
-        if out is not None:
-            out.to_parquet(cache_path, index=False)
-            print(f"    rows={len(out)} providers={out['provider_code'].nunique()} "
-                  f"specialties={out['treatment_function_code'].nunique()} -> cached")
+        for path in root.rglob("*.zip"):
+            low = path.name.lower()
+            if "full-csv" not in low and not low.startswith("rtt_"):
+                continue
+            month = month_from_text(path.name)
+            if month and START <= month <= END:
+                candidates.setdefault(month, []).append(path)
+    # Prefer canonical downloads, then revised releases.
+    return {
+        month: sorted(
+            paths,
+            key=lambda path: (
+                path.parent.name != "rtt_longitudinal",
+                "revised" not in path.name.lower(),
+                len(str(path)),
+            ),
+        )[0]
+        for month, paths in candidates.items()
+    }
 
-    cached = sorted(cache.glob("rtt_*.parquet"))
-    print(f"\nCombining {len(cached)}/{len(folders)} cached months")
-    if len(cached) < len(folders):
-        print("Not all months processed yet — re-run to continue.")
-        return None
-    frames = [pd.read_parquet(p) for p in cached]
-    full = pd.concat(frames, ignore_index=True)
-    for c in ["incomplete_total", "breach_18w_count", "breach_52w_count",
-              "dta_total", "new_rtt_total", "admitted_total", "non_admitted_total"]:
-        if c in full.columns:
-            full[c] = full[c].fillna(0)
 
-    INTERIM.joinpath("rtt_cleaned").mkdir(parents=True, exist_ok=True)
+def csv_member(path: Path) -> str:
+    with zipfile.ZipFile(path) as archive:
+        members = [name for name in archive.namelist() if name.lower().endswith(".csv")]
+    if not members:
+        raise ValueError(f"No CSV member in {path}")
+    return max(members, key=len)
+
+
+def parse_archive(path: Path, month: pd.Period) -> pd.DataFrame:
+    member = csv_member(path)
+    with zipfile.ZipFile(path) as archive, archive.open(member) as stream:
+        header = pd.read_csv(stream, nrows=0).columns.tolist()
+
+    identifiers = [
+        "Provider Org Code",
+        "Provider Org Name",
+        "RTT Part Type",
+        "Treatment Function Code",
+        "Treatment Function Name",
+        "Total All",
+    ]
+    band_columns = [column for column in header if re.match(r"Gt \d{2,3}(?: To \d{2,3})? Weeks SUM 1", column)]
+    within_columns = [
+        column for column in band_columns
+        if int(re.search(r"Gt (\d{2,3})", column).group(1)) < 18
+    ]
+    over52_columns = [
+        column for column in band_columns
+        if int(re.search(r"Gt (\d{2,3})", column).group(1)) >= 52
+    ]
+    usecols = [column for column in identifiers + within_columns + over52_columns if column in header]
+    required = {"Provider Org Code", "RTT Part Type", "Treatment Function Code", "Total All"}
+    if not required.issubset(usecols):
+        raise ValueError(f"Unexpected RTT schema in {path.name}; missing {sorted(required - set(usecols))}")
+
+    partial = []
+    with zipfile.ZipFile(path) as archive, archive.open(member) as stream:
+        for chunk in pd.read_csv(stream, usecols=usecols, chunksize=40_000, low_memory=False):
+            chunk = chunk[chunk["Provider Org Code"].notna()].copy()
+            chunk = chunk[
+                ~chunk.apply(
+                    lambda row: is_total_tfc(
+                        row["Treatment Function Code"], row.get("Treatment Function Name")
+                    ),
+                    axis=1,
+                )
+            ]
+            chunk = chunk[chunk["RTT Part Type"].isin(PART_MAP)]
+            numeric = ["Total All"] + within_columns + over52_columns
+            for column in numeric:
+                if column in chunk:
+                    chunk[column] = pd.to_numeric(chunk[column], errors="coerce").fillna(0)
+            chunk["within_18w"] = chunk[[c for c in within_columns if c in chunk]].sum(axis=1)
+            chunk["breach_52w_count"] = chunk[[c for c in over52_columns if c in chunk]].sum(axis=1)
+            partial.append(
+                chunk.groupby(
+                    [
+                        "Provider Org Code",
+                        "Provider Org Name",
+                        "Treatment Function Code",
+                        "Treatment Function Name",
+                        "RTT Part Type",
+                    ],
+                    as_index=False,
+                    dropna=False,
+                )[["Total All", "within_18w", "breach_52w_count"]].sum()
+            )
+
+    data = pd.concat(partial, ignore_index=True)
+    data = data.groupby(
+        [
+            "Provider Org Code",
+            "Provider Org Name",
+            "Treatment Function Code",
+            "Treatment Function Name",
+            "RTT Part Type",
+        ],
+        as_index=False,
+        dropna=False,
+    )[["Total All", "within_18w", "breach_52w_count"]].sum()
+
+    base = data[data["RTT Part Type"] == "Part_2"].copy()
+    base = base.rename(
+        columns={
+            "Provider Org Code": "provider_code",
+            "Provider Org Name": "provider_name",
+            "Treatment Function Code": "treatment_function_code",
+            "Treatment Function Name": "treatment_function_name",
+            "Total All": "incomplete_total",
+        }
+    )
+    base["breach_18w_count"] = (base["incomplete_total"] - base["within_18w"]).clip(lower=0)
+    base = base.drop(columns="within_18w")
+    for part, column in PART_MAP.items():
+        if part == "Part_2":
+            continue
+        addition = data[data["RTT Part Type"] == part][
+            ["Provider Org Code", "Treatment Function Code", "Total All"]
+        ].rename(
+            columns={
+                "Provider Org Code": "provider_code",
+                "Treatment Function Code": "treatment_function_code",
+                "Total All": column,
+            }
+        )
+        base = base.merge(addition, on=KEYS, how="left")
+
+    for column in PART_MAP.values():
+        base[column] = pd.to_numeric(base.get(column), errors="coerce").fillna(0)
+    base["breach_52w_count"] = pd.to_numeric(base["breach_52w_count"], errors="coerce").fillna(0)
+    base["month"] = str(month)
+    base["quarter"] = f"{month_to_quarter(month.month)} {financial_year(month.year, month.month)}"
+    base["financial_year"] = financial_year(month.year, month.month)
+    base["region_code"] = np.nan
+    return base[
+        [
+            "month",
+            "quarter",
+            "financial_year",
+            "region_code",
+            "provider_code",
+            "provider_name",
+            "treatment_function_code",
+            "treatment_function_name",
+            "incomplete_total",
+            "breach_18w_count",
+            "breach_52w_count",
+            "dta_total",
+            "new_rtt_total",
+            "admitted_total",
+            "non_admitted_total",
+        ]
+    ]
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--force", action="store_true")
+    args = parser.parse_args()
+    found = archives()
+    expected = set(pd.period_range(START, END, freq="M"))
+    if set(found) != expected:
+        missing = sorted(str(month) for month in expected - set(found))
+        raise RuntimeError(
+            "RTT coverage incomplete; run 01_download_longitudinal_data.py. "
+            f"Missing: {missing}"
+        )
+
+    cache = INTERIM / "rtt_v2" / "by_month"
+    cache.mkdir(parents=True, exist_ok=True)
+    frames = []
+    for month in sorted(found):
+        cached = cache / f"rtt_{month}.parquet"
+        if args.force or not cached.exists():
+            print(f"clean RTT {month}: {found[month].name}")
+            parse_archive(found[month], month).to_parquet(cached, index=False)
+        else:
+            print(f"reuse RTT {month}: {cached.name}")
+        frames.append(pd.read_parquet(cached))
+
+    result = pd.concat(frames, ignore_index=True)
+    result = result.drop_duplicates(["month", *KEYS]).sort_values(["month", *KEYS])
+    out_interim = INTERIM / "rtt_v2" / "rtt_provider_specialty_month.parquet"
+    out_processed = PROCESSED / "rtt_provider_specialty_month.parquet"
     PROCESSED.mkdir(parents=True, exist_ok=True)
-    o1 = INTERIM / "rtt_cleaned" / "rtt_provider_specialty_month.parquet"
-    o2 = PROCESSED / "rtt_provider_specialty_month.parquet"
-    full.to_parquet(o1, index=False)
-    full.to_parquet(o2, index=False)
-    print(f"\nWrote {len(full):,} rows x {full.shape[1]} cols")
-    print(f"  {o1}\n  {o2}")
-    print("Months:", sorted(full['month'].unique()))
-    return full
+    result.to_parquet(out_interim, index=False)
+    result.to_parquet(out_processed, index=False)
+    print(
+        f"Wrote {len(result):,} rows; months={result.month.nunique()}, "
+        f"providers={result.provider_code.nunique()}, "
+        f"specialties={result.treatment_function_code.nunique()}"
+    )
 
 
 if __name__ == "__main__":

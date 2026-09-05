@@ -1,0 +1,15 @@
+cff-version: 1.2.0
+message: "If you use FairQueue 2.0, please cite the accompanying article and this software."
+title: "FairQueue 2.0"
+type: software
+authors:
+  - family-names: Adetola
+    given-names: Adebayo Aliu
+    orcid: "https://orcid.org/0009-0002-1995-6400"
+  - family-names: Akinade
+    given-names: Olugbenga
+    orcid: "https://orcid.org/0000-0003-3950-3775"
+repository-code: "https://github.com/tollyboy88/fairqueue-simulator"
+license: MIT
+version: 2.0.0
+date-released: 2026-09-05

@@ -1,42 +1,69 @@
-# FairQueue Simulator
+# FairQueue 2.0
 
-A local, explainable simulator that ranks NHS **provider × specialty × month**
-elective-care areas by combining **waiting-list pressure**, **fairness risk** and
-**operational pressure** into a transparent priority score — built on public NHS
-data to support fairness-aware elective prioritisation research.
+FairQueue 2.0 is a research pipeline for forecasting NHS elective-care pressure and
+examining transparent equity constraints. It predicts the provider–specialty 52-week
+incomplete-pathway breach rate exactly three months ahead, then builds a top-*K*
+monitoring list with an optional minimum share of providers with high measured equity
+need.
 
-> It prioritises *areas of pressure*, not individual patients.
+The forecast target is independent of the policy rule. Demographic disparity indicators
+are not model features: they enter only at the equity-constrained selection stage.
+FairQueue prioritises aggregated service pressure, not individual patients.
 
-## Quick start
+## Reproduce the analysis
 
-```bash
-pip install -r requirements.txt
-python src/01_extract_data.py     # catalogue raw files
-python src/02_clean_rtt.py        # build the RTT waiting-list table
+```powershell
+py -m pip install -r requirements.txt
+py run_all.py
+py -m pytest -q
+streamlit run app/streamlit_app.py
 ```
 
-## Where things live
+After the official source files have been downloaded once, use
+`py run_all.py --skip-download` to rebuild from the recorded local files.
 
+## Study design
+
+- Data: 51 monthly NHS releases, April 2022–June 2026, with a SHA-256 source manifest.
+- Unit: provider × treatment function × feature month.
+- Outcome: 52-week breach rate at feature month + 3.
+- Training features: April 2022–December 2024; targets are three months later.
+- Validation features: January–June 2025; used for model selection.
+- Locked test features: July 2025–March 2026; targets October 2025–June 2026.
+- Equity illustration: top-20 June 2026 list using the April 2026 WLMDS snapshot.
+
+The validation-selected Random Forest achieved test RMSE 0.0143 (1.43 percentage
+points), R² 0.636, Spearman correlation 0.836, and Recall@20 0.578. Persistence had
+slightly lower MAE (0.00665 versus 0.00684), so the study does not claim universal
+predictive superiority. Provider-clustered bootstrap intervals and training-window,
+specialty, and feature-set sensitivity analyses are retained under `outputs/metrics/`.
+
+## Repository map
+
+```text
+src/01_download_longitudinal_data.py   official-source acquisition + manifest
+src/02_clean_rtt.py ... 06_*           harmonisation, dated features, future target
+src/07_* ... 12_*                      models, locked evaluation, equity, robustness
+src/13_* ... 14_*                      paper figures/tables and static dashboard
+tests/                                 leakage and temporal-integrity tests
+app/                                   Streamlit research explorer
+outputs/figures/                       three journal figures (PNG and TIFF)
+outputs/tables/                        two journal tables plus policy selections
+submission/Health_Systems/             submission-ready journal package
 ```
-data/raw/        426 source files, sorted into 11 categories
-data/interim/    cleaned per-source tables (incl. RTT per-month cache)
-data/processed/  modelling-ready parquet (rtt_provider_specialty_month.parquet …)
-src/             pipeline scripts 00–08 + utils.py
-app/             Streamlit app (6 pages) — to build
-outputs/         data_catalogue.csv, charts, tables, rankings, metrics
-notebooks/       exploration / testing
-```
 
-## Status & how to proceed
+See `REPRODUCIBILITY.md` for the data contract and audit checks. Raw NHS downloads and
+large generated Parquet files are intentionally excluded from Git; URLs, hashes, and
+retrieval times are recorded in `data/source_manifest.csv`.
 
-See **`BUILD_GUIDE.md`** — it tracks what's built (skeleton, data arrangement,
-catalogue, RTT pipeline) and the exact next steps (WLMDS fairness → operational
-cleaning → modelling join → scoring → simulation → app → exports), with the join
-logic, scoring formulas and validation gates. The full design rationale is in
-*Architectural Design and lay out foundation.md*.
+## Responsible-use statement
 
-## Data note
+This is a retrospective, aggregate-data research prototype. It does not rank patients,
+recommend treatment, make clinical decisions, estimate causal effects, or allocate NHS
+capacity. Prospective operational and equity-impact evaluation would be required before
+deployment.
 
-All inputs are public, aggregated NHS / ONS data (RTT, WLMDS, DM01 diagnostics,
-A&E, KH03 beds, UEC sitrep, operating theatres, cancelled operations, ONS
-population/ethnicity, IMD 2019). No patient-level data is used.
+## Licence
+
+Code is released under the MIT Licence. NHS source data remain subject to their original
+publishers' terms.
