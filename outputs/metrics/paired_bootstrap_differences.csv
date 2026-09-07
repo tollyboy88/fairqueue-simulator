@@ -1,0 +1,4 @@
+comparison,metric,estimate,ci_lower,ci_upper,difference_definition,bootstrap_unit,replicates
+Random Forest minus Persistence,mae,0.00019705488353290168,2.7491441044136608e-05,0.0003597385986511105,selected learned model minus Persistence,provider,1000
+Random Forest minus Persistence,rmse,-0.0014070639993568734,-0.001956722598783244,-0.0008585394773947823,selected learned model minus Persistence,provider,1000
+Random Forest minus Persistence,ndcg_at_20,0.011766223177948731,-0.010501399671426034,0.05092177199488256,selected learned model minus Persistence,provider,1000

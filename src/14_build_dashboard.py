@@ -13,17 +13,19 @@ from utils import OUTPUTS, PROCESSED
 
 def main() -> None:
     metrics_dir = OUTPUTS / "metrics"
-    selected = json.loads((metrics_dir / "selected_model.json").read_text(encoding="utf-8"))[
-        "selected_model"
-    ]
+    specification = json.loads(
+        (metrics_dir / "selected_model.json").read_text(encoding="utf-8")
+    )
+    selected = specification["primary_forecaster"]
+    learned = specification["selected_learned_model"]
     predictions = pd.read_parquet(PROCESSED / "test_predictions.parquet")
-    tradeoff = pd.read_csv(metrics_dir / "equity_utility_tradeoff.csv")
+    tradeoff = pd.read_csv(metrics_dir / "equity_pressure_capture_frontier.csv")
     model_metrics = pd.read_csv(metrics_dir / "test_model_metrics.csv")
     monthly = pd.read_csv(metrics_dir / "monthly_test_metrics.csv")
     latest = predictions[predictions.target_date == predictions.target_date.max()].copy()
 
     temporal = px.line(
-        monthly[monthly.model.isin(["Persistence", selected])],
+        monthly[monthly.model.isin([selected, learned])],
         x="target_month",
         y="mae",
         color="model",
@@ -32,12 +34,12 @@ def main() -> None:
         labels={"mae": "MAE in 52-week breach rate", "target_month": "Outcome month"},
     )
     curve = px.line(
-        tradeoff[tradeoff.strategy == "Equity-constrained forecast"],
-        x="high_equity_need_share",
+        tradeoff[tradeoff.strategy == "Equity-constrained primary forecast"],
+        x="high_equity_need_service_share",
         y="observed_pressure_mean",
         markers=True,
         text="minimum_high_need_share",
-        title="Observed utility-equity trade-off at K=20",
+        title="Equity-pressure-capture frontier at K=20",
     )
     latest_rank = latest.nlargest(30, selected)[
         [

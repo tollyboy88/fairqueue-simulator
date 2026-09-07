@@ -16,7 +16,8 @@ st.markdown(
     """
 FairQueue forecasts the **provider × specialty 52-week breach rate three months ahead**
 from public NHS data. It then selects a top-*K* monitoring list while allowing a decision
-maker to set a minimum share of providers with high measured equity need.
+maker to set a minimum share of selected provider-specialty services associated with
+providers that have high measured equity need.
 
 The prediction target is independent of the prioritisation policy. Demographic disparities
 never enter the forecast; they are applied only in the transparent selection constraint.
@@ -26,7 +27,8 @@ The tool prioritises aggregated service pressure, **not individual patients**.
 
 try:
     metrics = da.metric("test_model_metrics.csv")
-    selected = metrics.loc[metrics.model.eq("Random Forest")].iloc[0]
+    primary_name = da.specification()["primary_forecaster"]
+    selected = metrics.loc[metrics.model.eq(primary_name)].iloc[0]
     predictions = da.predictions()
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Held-out observations", f"{len(predictions):,}")
@@ -34,7 +36,7 @@ try:
     c3.metric("RMSE", f"{selected.rmse * 100:.2f} pp")
     c4.metric("Recall@20", f"{selected.recall_at_20:.1%}")
     st.info(
-        "Use the sidebar to inspect forecasts, the equity–utility frontier, temporal "
+        "Use the sidebar to inspect forecasts, the equity–pressure-capture frontier, temporal "
         "validation, and the study's intended-use limits."
     )
 except FileNotFoundError:

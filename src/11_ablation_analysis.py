@@ -25,7 +25,7 @@ def main() -> None:
     test = data[data.split == "test"].copy()
     selected_name = json.loads(
         (OUTPUTS / "metrics" / "selected_model.json").read_text(encoding="utf-8")
-    )["selected_model"]
+    )["selected_learned_model"]
     specs = {spec.name: spec for spec in forecasting.model_specs()}
     if selected_name not in specs:
         raise RuntimeError(f"Selected estimator {selected_name!r} is unavailable")

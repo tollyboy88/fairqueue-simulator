@@ -6,8 +6,8 @@ st.markdown(
     """
 1. Builds provider–specialty–month features from public aggregate NHS releases.
 2. Predicts the 52-week incomplete-pathway breach rate exactly three months ahead.
-3. Ranks forecast pressure and optionally enforces a minimum representation floor for
-   providers with high measured equity need.
+3. Ranks forecast pressure and optionally enforces a minimum share of selected
+   provider-specialty services associated with high-equity-need providers.
 """
 )
 st.subheader("What it does not do")
@@ -23,6 +23,6 @@ st.subheader("Important limitations")
 st.markdown(
     """The observational unit is an aggregated service line, provider coding changes can affect
 longitudinal comparability, public operational data are incomplete, and the equity analysis
-uses one nationally available WLMDS snapshot. Results therefore support monitoring and
-scenario discussion only."""
+uses one nationally available WLMDS snapshot that was published before the decision
+date. Results therefore support monitoring and scenario discussion only."""
 )

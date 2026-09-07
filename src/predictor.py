@@ -222,7 +222,12 @@ def feature_importance(
     ).sort_values("importance_mean", ascending=False)
 
 
-def save_bundle(model: Pipeline, features: list[str], selected_name: str) -> None:
+def save_bundle(
+    model: Pipeline,
+    features: list[str],
+    selected_name: str,
+    selected_learned_name: str,
+) -> None:
     MODELS.mkdir(parents=True, exist_ok=True)
     joblib.dump(
         {
@@ -231,6 +236,9 @@ def save_bundle(model: Pipeline, features: list[str], selected_name: str) -> Non
             "categorical_features": CATEGORICAL,
             "target": TARGET,
             "selected_model": selected_name,
+            "primary_forecaster": selected_name,
+            "learned_comparator": selected_learned_name,
+            "model_role": "selected learned comparator",
             "horizon_months": 3,
         },
         MODEL_PATH,

@@ -16,6 +16,16 @@ from utils import INTERIM, PROCESSED, RAW  # noqa: E402
 
 LONG_BAND = "Over 52 Weeks"
 ALL_BAND = "Total"
+SNAPSHOT_RELEASES = {
+    pd.Timestamp("2026-02-22"): {
+        "available_date": pd.Timestamp("2026-03-12"),
+        "filename": "WLMDS-Demographics-Geography-to-22-February-2026-v1.csv",
+    },
+    pd.Timestamp("2026-04-26"): {
+        "available_date": pd.Timestamp("2026-06-11"),
+        "filename": "WLMDS-Demographics-Geography-to-26-April-2026-v1.csv",
+    },
+}
 
 
 def dated_geography_files() -> list[tuple[pd.Timestamp, Path]]:
@@ -48,54 +58,63 @@ def main() -> None:
     available = dated_geography_files()
     if not available:
         raise FileNotFoundError("No WLMDS Demographics Geography CSV found under data/raw/wlmds")
-    # The April 2026 snapshot predates the June 2026 outcome and is therefore
-    # the latest eligible source for the retrospective decision analysis.
-    eligible = [(date, path) for date, path in available if date <= pd.Timestamp("2026-04-30")]
-    snapshot_date, path = eligible[-1] if eligible else available[0]
-    raw = pd.read_csv(path)
-    raw["Count"] = pd.to_numeric(raw["Count"], errors="coerce").fillna(0)
-    provider = raw[raw["Geography"].isin(["NHS ACUTE", "INDEPENDENT SECTOR", "OTHER"])].copy()
-
     summaries, details = [], []
-    for code, provider_rows in provider.groupby("Code"):
-        record = {
-            "provider_code": str(code).strip(),
-            "provider_name": provider_rows["Name"].iloc[0],
-            "snapshot_date": snapshot_date,
-        }
-        for metric, key in (
-            ("IMD", "deprivation_disparity"),
-            ("Ethnicity", "ethnicity_disparity"),
-            ("Age", "age_disparity"),
-            ("Sex", "sex_disparity"),
-        ):
-            table = gaps(provider_rows[provider_rows["Metric"] == metric])
-            if table.empty:
-                record[key] = float("nan")
-                continue
-            table.insert(0, "metric", metric)
-            table.insert(0, "provider_code", str(code).strip())
-            table.insert(0, "snapshot_date", snapshot_date)
-            details.append(table)
-            record[key] = float(
-                table.disparity.abs().max()
-                if metric == "Sex"
-                else table.disparity.clip(lower=0).max()
+    used_files = []
+    for snapshot_date, path in available:
+        release = SNAPSHOT_RELEASES.get(snapshot_date)
+        if release is None or path.name != release["filename"]:
+            continue
+        available_date = release["available_date"]
+        raw = pd.read_csv(path)
+        raw["Count"] = pd.to_numeric(raw["Count"], errors="coerce").fillna(0)
+        provider = raw[raw["Geography"].isin(["NHS ACUTE", "INDEPENDENT SECTOR", "OTHER"])].copy()
+        for code, provider_rows in provider.groupby("Code"):
+            record = {
+                "provider_code": str(code).strip(),
+                "provider_name": provider_rows["Name"].iloc[0],
+                "snapshot_date": snapshot_date,
+                "available_date": available_date,
+            }
+            for metric, key in (
+                ("IMD", "deprivation_disparity"),
+                ("Ethnicity", "ethnicity_disparity"),
+                ("Age", "age_disparity"),
+                ("Sex", "sex_disparity"),
+            ):
+                table = gaps(provider_rows[provider_rows["Metric"] == metric])
+                if table.empty:
+                    record[key] = float("nan")
+                    continue
+                table.insert(0, "metric", metric)
+                table.insert(0, "provider_code", str(code).strip())
+                table.insert(0, "available_date", available_date)
+                table.insert(0, "snapshot_date", snapshot_date)
+                details.append(table)
+                record[key] = float(
+                    table.disparity.abs().max()
+                    if metric == "Sex"
+                    else table.disparity.clip(lower=0).max()
+                )
+            ethnicity_total = provider_rows[
+                (provider_rows["Metric"] == "Ethnicity")
+                & (provider_rows["Waiting Bands"] == ALL_BAND)
+            ]
+            denominator = ethnicity_total["Count"].sum()
+            unknown = ethnicity_total[
+                ethnicity_total["Category"].astype(str).str.contains(
+                    "not known|unknown", case=False, regex=True
+                )
+            ]["Count"].sum()
+            record["missing_demographic_share"] = (
+                float(unknown / denominator) if denominator else float("nan")
             )
-        ethnicity_total = provider_rows[
-            (provider_rows["Metric"] == "Ethnicity")
-            & (provider_rows["Waiting Bands"] == ALL_BAND)
-        ]
-        denominator = ethnicity_total["Count"].sum()
-        unknown = ethnicity_total[
-            ethnicity_total["Category"].astype(str).str.contains(
-                "not known|unknown", case=False, regex=True
-            )
-        ]["Count"].sum()
-        record["missing_demographic_share"] = (
-            float(unknown / denominator) if denominator else float("nan")
+            summaries.append(record)
+        used_files.append(path.name)
+
+    if not summaries:
+        raise RuntimeError(
+            "No WLMDS geography file has a declared publication-availability date"
         )
-        summaries.append(record)
 
     summary = pd.DataFrame(summaries)
     detail = pd.concat(details, ignore_index=True)
@@ -106,8 +125,8 @@ def main() -> None:
     detail.to_parquet(folder / "provider_disparities_detail.parquet", index=False)
     summary.to_parquet(PROCESSED / "provider_disparities.parquet", index=False)
     print(
-        f"Wrote {len(summary)} provider disparity rows from {path.name} "
-        f"({snapshot_date.date()})"
+        f"Wrote {len(summary)} provider disparity rows from {len(used_files)} snapshots: "
+        f"{', '.join(used_files)}"
     )
 
 

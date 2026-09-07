@@ -55,10 +55,12 @@ def main() -> None:
     validation_metrics = pd.DataFrame(validation_rows).sort_values("mae")
     validation_metrics.to_csv(metrics_dir / "validation_model_metrics.csv", index=False)
     candidate_names = set(fitted_validation)
-    selected_name = validation_metrics[
+    selected_name = validation_metrics.iloc[0].model
+    selected_learned_name = validation_metrics[
         validation_metrics.model.isin(candidate_names)
     ].iloc[0].model
-    print(f"Selected on validation MAE: {selected_name}")
+    print(f"Primary forecaster selected on validation MAE: {selected_name}")
+    print(f"Selected learned comparator on validation MAE: {selected_learned_name}")
 
     identifiers = [
         "feature_date",
@@ -103,14 +105,22 @@ def main() -> None:
     test_metrics = pd.DataFrame(test_rows).sort_values("mae")
     test_metrics.to_csv(metrics_dir / "test_model_metrics.csv", index=False)
     test_predictions.to_parquet(PROCESSED / "test_predictions.parquet", index=False)
-    forecasting.save_bundle(final_models[selected_name], features, selected_name)
+    forecasting.save_bundle(
+        final_models[selected_learned_name],
+        features,
+        selected_name,
+        selected_learned_name,
+    )
     forecasting.feature_importance(
-        final_models[selected_name], test, features
+        final_models[selected_learned_name], test, features
     ).to_csv(metrics_dir / "permutation_feature_importance.csv", index=False)
 
     specification = {
         "selection_metric": "validation MAE",
         "selected_model": selected_name,
+        "primary_forecaster": selected_name,
+        "selected_learned_model": selected_learned_name,
+        "selection_candidates": "baselines and learned models",
         "target": "observed provider-specialty 52-week breach rate at t+3",
         "features": features,
         "categorical_features": forecasting.CATEGORICAL,

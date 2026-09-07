@@ -1,6 +1,9 @@
 {
   "selection_metric": "validation MAE",
-  "selected_model": "Random Forest",
+  "selected_model": "Persistence",
+  "primary_forecaster": "Persistence",
+  "selected_learned_model": "Random Forest",
+  "selection_candidates": "baselines and learned models",
   "target": "observed provider-specialty 52-week breach rate at t+3",
   "features": [
     "breach_18w_rate",

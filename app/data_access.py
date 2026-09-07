@@ -1,5 +1,6 @@
 """Cached data access for the FairQueue 2.0 Streamlit explorer."""
 from pathlib import Path
+import json
 
 import pandas as pd
 import streamlit as st
@@ -29,3 +30,8 @@ def equity_indicators() -> pd.DataFrame:
 @st.cache_data(show_spinner=False)
 def metric(name: str) -> pd.DataFrame:
     return pd.read_csv(METRICS / name)
+
+
+@st.cache_data(show_spinner=False)
+def specification() -> dict:
+    return json.loads((METRICS / "selected_model.json").read_text(encoding="utf-8"))

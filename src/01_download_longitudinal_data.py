@@ -39,6 +39,12 @@ DM01_PAGES = [
     f"monthly-diagnostics-data-{year}/"
     for year in ("2022-23", "2023-24", "2024-25", "2025-26", "2026-27")
 ]
+WLMDS_GEOGRAPHY_URL = (
+    "https://www.england.nhs.uk/statistics/wp-content/uploads/sites/2/2026/03/"
+    "WLMDS-Demographics-Geography-to-22-February-2026-v1.csv"
+)
+WLMDS_SNAPSHOT_DATE = pd.Timestamp("2026-02-22")
+WLMDS_AVAILABLE_DATE = pd.Timestamp("2026-03-12")
 
 
 class LinkParser(HTMLParser):
@@ -103,10 +109,13 @@ def discover(page: str, dataset: str) -> list[Source]:
 
 
 def existing_file(dataset: str, month: pd.Period) -> Path | None:
-    root = RAW / ("rtt" if dataset == "rtt" else "diagnostics")
+    folder = "rtt" if dataset == "rtt" else "diagnostics"
+    roots = [RAW / folder, RAW / f"{dataset}_longitudinal"]
     token_a = month.strftime("%b%y").lower()
     token_b = month.strftime("%B-%Y").lower()
-    if root.exists():
+    for root in roots:
+        if not root.exists():
+            continue
         for path in root.rglob("*.zip"):
             low = path.name.lower()
             if dataset == "rtt" and "full-csv" not in low:
@@ -137,6 +146,22 @@ def download(source: Source, force: bool = False) -> Path:
     partial = target.with_suffix(".part")
     print(f"download {source.dataset:4s} {source.month}: {source.url}")
     request = urllib.request.Request(source.url, headers={"User-Agent": USER_AGENT})
+    with urllib.request.urlopen(request, timeout=180) as response, partial.open("wb") as output:
+        shutil.copyfileobj(response, output)
+    partial.replace(target)
+    return target
+
+
+def download_wlmds_geography(force: bool = False) -> Path:
+    folder = RAW / "wlmds" / "WLMDS"
+    folder.mkdir(parents=True, exist_ok=True)
+    target = folder / Path(WLMDS_GEOGRAPHY_URL).name
+    if target.exists() and not force:
+        print(f"reuse wlmds {WLMDS_SNAPSHOT_DATE.date()}: {target.name}")
+        return target
+    partial = target.with_suffix(".part")
+    print(f"download wlmds {WLMDS_SNAPSHOT_DATE.date()}: {WLMDS_GEOGRAPHY_URL}")
+    request = urllib.request.Request(WLMDS_GEOGRAPHY_URL, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(request, timeout=180) as response, partial.open("wb") as output:
         shutil.copyfileobj(response, output)
     partial.replace(target)
@@ -176,7 +201,19 @@ def main() -> None:
             "bytes": path.stat().st_size,
             "sha256": sha256(path),
             "retrieved_utc": retrieved,
+            "available_date": "",
         })
+    wlmds_path = download_wlmds_geography(force=args.force)
+    rows.append({
+        "dataset": "wlmds_geography",
+        "month": str(WLMDS_SNAPSHOT_DATE.to_period("M")),
+        "source_url": WLMDS_GEOGRAPHY_URL,
+        "local_path": wlmds_path.relative_to(ROOT).as_posix(),
+        "bytes": wlmds_path.stat().st_size,
+        "sha256": sha256(wlmds_path),
+        "retrieved_utc": retrieved,
+        "available_date": WLMDS_AVAILABLE_DATE.date().isoformat(),
+    })
     manifest = ROOT / "data" / "source_manifest.csv"
     manifest.parent.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(rows).sort_values(["dataset", "month"]).to_csv(manifest, index=False)

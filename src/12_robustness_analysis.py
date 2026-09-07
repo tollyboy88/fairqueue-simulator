@@ -16,7 +16,7 @@ def main() -> None:
     metrics_dir = OUTPUTS / "metrics"
     selected_name = json.loads(
         (metrics_dir / "selected_model.json").read_text(encoding="utf-8")
-    )["selected_model"]
+    )["selected_learned_model"]
     predictions = pd.read_parquet(PROCESSED / "test_predictions.parquet")
     specialty_rows = []
     for specialty, group in predictions.groupby("treatment_function_name"):

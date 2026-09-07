@@ -1,28 +1,30 @@
 {
-  "selected_model": "Random Forest",
-  "rows": 135708,
+  "selected_model": "Persistence",
+  "selected_learned_model": "Random Forest",
+  "feature_cohort_rows": 135708,
+  "rows": 120779,
   "providers": 538,
   "specialties": 23,
   "feature_month_start": "2022-04-30",
   "feature_month_end": "2026-03-31",
-  "test_rows": 25068,
+  "test_rows": 24933,
   "test_target_months": 9,
   "test_metrics": {
-    "model": "Random Forest",
+    "model": "Persistence",
     "partition": "test",
-    "mae": 0.0068440340692108,
-    "rmse": 0.0143407629749046,
-    "r2": 0.6362749331684052,
-    "spearman": 0.8355812621665301,
-    "precision_at_10": 0.6222222222222222,
-    "recall_at_10": 0.6222222222222222,
-    "ndcg_at_10": 0.7995278044446775,
+    "mae": 0.0066469791856779,
+    "rmse": 0.0157478269742615,
+    "r2": 0.5613986282954262,
+    "spearman": 0.8358737923601762,
+    "precision_at_10": 0.6000000000000001,
+    "recall_at_10": 0.6000000000000001,
+    "ndcg_at_10": 0.7687263653297902,
     "precision_at_20": 0.5777777777777778,
     "recall_at_20": 0.5777777777777778,
-    "ndcg_at_20": 0.7838104697198944,
-    "precision_at_50": 0.5555555555555556,
-    "recall_at_50": 0.5555555555555556,
-    "ndcg_at_50": 0.7957899779524259
+    "ndcg_at_20": 0.7720442465419457,
+    "precision_at_50": 0.5511111111111112,
+    "recall_at_50": 0.5511111111111112,
+    "ndcg_at_50": 0.7784889751740602
   },
   "persistence_metrics": {
     "model": "Persistence",
@@ -43,58 +45,146 @@
   },
   "selected_model_intervals": [
     {
+      "model": "Persistence",
+      "metric": "mae",
+      "estimate": 0.0066469791856779,
+      "ci_lower": 0.0060277865715719,
+      "ci_upper": 0.0072976143049434,
+      "bootstrap_unit": "provider",
+      "replicates": 1000
+    },
+    {
+      "model": "Persistence",
+      "metric": "rmse",
+      "estimate": 0.0157478269742615,
+      "ci_lower": 0.01343397292871,
+      "ci_upper": 0.0183635514122479,
+      "bootstrap_unit": "provider",
+      "replicates": 1000
+    },
+    {
+      "model": "Persistence",
+      "metric": "r2",
+      "estimate": 0.5613986282954262,
+      "ci_lower": 0.4459535640624177,
+      "ci_upper": 0.6558592799838967,
+      "bootstrap_unit": "provider",
+      "replicates": 1000
+    },
+    {
+      "model": "Persistence",
+      "metric": "spearman",
+      "estimate": 0.8358737923601762,
+      "ci_lower": 0.8176204971309469,
+      "ci_upper": 0.852598462198513,
+      "bootstrap_unit": "provider",
+      "replicates": 1000
+    },
+    {
+      "model": "Persistence",
+      "metric": "recall_at_20",
+      "estimate": 0.5777777777777778,
+      "ci_lower": 0.3833333333333333,
+      "ci_upper": 0.6890277777777777,
+      "bootstrap_unit": "provider",
+      "replicates": 1000
+    },
+    {
+      "model": "Persistence",
+      "metric": "ndcg_at_20",
+      "estimate": 0.7720442465419457,
+      "ci_lower": 0.6388696284071378,
+      "ci_upper": 0.877988702913684,
+      "bootstrap_unit": "provider",
+      "replicates": 1000
+    }
+  ],
+  "selected_learned_model_intervals": [
+    {
       "model": "Random Forest",
       "metric": "mae",
       "estimate": 0.0068440340692108,
-      "ci_lower": 0.0062763558107031,
-      "ci_upper": 0.0074001491629735,
+      "ci_lower": 0.0062926738316523,
+      "ci_upper": 0.0074116713159116,
       "bootstrap_unit": "provider",
-      "replicates": 100
+      "replicates": 1000
     },
     {
       "model": "Random Forest",
       "metric": "rmse",
       "estimate": 0.0143407629749046,
-      "ci_lower": 0.0124509680823683,
-      "ci_upper": 0.0165086334560086,
+      "ci_lower": 0.0124130728986187,
+      "ci_upper": 0.0168657747719237,
       "bootstrap_unit": "provider",
-      "replicates": 100
+      "replicates": 1000
     },
     {
       "model": "Random Forest",
       "metric": "r2",
       "estimate": 0.6362749331684052,
-      "ci_lower": 0.5692708806448165,
-      "ci_upper": 0.7028878784538185,
+      "ci_lower": 0.5526881170574487,
+      "ci_upper": 0.7105600448587119,
       "bootstrap_unit": "provider",
-      "replicates": 100
+      "replicates": 1000
     },
     {
       "model": "Random Forest",
       "metric": "spearman",
       "estimate": 0.8355812621665301,
-      "ci_lower": 0.8194478057669825,
-      "ci_upper": 0.8526866107831416,
+      "ci_lower": 0.8159027103812564,
+      "ci_upper": 0.8514421600441802,
       "bootstrap_unit": "provider",
-      "replicates": 100
+      "replicates": 1000
     },
     {
       "model": "Random Forest",
       "metric": "recall_at_20",
       "estimate": 0.5777777777777778,
-      "ci_lower": 0.4105555555555555,
-      "ci_upper": 0.719861111111111,
+      "ci_lower": 0.4222222222222223,
+      "ci_upper": 0.7388888888888888,
       "bootstrap_unit": "provider",
-      "replicates": 100
+      "replicates": 1000
     },
     {
       "model": "Random Forest",
       "metric": "ndcg_at_20",
       "estimate": 0.7838104697198944,
-      "ci_lower": 0.6717661623199954,
-      "ci_upper": 0.8740335909619954,
+      "ci_lower": 0.6684976969663592,
+      "ci_upper": 0.8783274798766486,
       "bootstrap_unit": "provider",
-      "replicates": 100
+      "replicates": 1000
+    }
+  ],
+  "paired_differences": [
+    {
+      "comparison": "Random Forest minus Persistence",
+      "metric": "mae",
+      "estimate": 0.0001970548835329,
+      "ci_lower": 2.7491441044136608e-05,
+      "ci_upper": 0.0003597385986511,
+      "difference_definition": "selected learned model minus Persistence",
+      "bootstrap_unit": "provider",
+      "replicates": 1000
+    },
+    {
+      "comparison": "Random Forest minus Persistence",
+      "metric": "rmse",
+      "estimate": -0.0014070639993568,
+      "ci_lower": -0.0019567225987832,
+      "ci_upper": -0.0008585394773947,
+      "difference_definition": "selected learned model minus Persistence",
+      "bootstrap_unit": "provider",
+      "replicates": 1000
+    },
+    {
+      "comparison": "Random Forest minus Persistence",
+      "metric": "ndcg_at_20",
+      "estimate": 0.0117662231779487,
+      "ci_lower": -0.010501399671426,
+      "ci_upper": 0.0509217719948825,
+      "difference_definition": "selected learned model minus Persistence",
+      "bootstrap_unit": "provider",
+      "replicates": 1000
     }
   ]
 }

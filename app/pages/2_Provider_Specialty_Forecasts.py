@@ -17,13 +17,14 @@ specialty = st.selectbox("Specialty", ["All"] + specialties)
 shown = frame[frame.target_month.eq(month)].copy()
 if specialty != "All":
     shown = shown[shown.treatment_function_name.eq(specialty)]
-shown = shown.sort_values("Random Forest", ascending=False).head(50)
+primary = da.specification()["primary_forecaster"]
+shown = shown.sort_values(primary, ascending=False).head(50)
 fig = px.bar(
-    shown.head(20).sort_values("Random Forest"), x="Random Forest", y="provider_name",
+    shown.head(20).sort_values(primary), x=primary, y="provider_name",
     orientation="h", hover_data=["treatment_function_name", "target_breach_52w_rate"],
 )
 fig.update_layout(xaxis_tickformat=".1%", xaxis_title="Forecast 52-week breach rate", yaxis_title="")
 st.plotly_chart(fig, use_container_width=True)
-table = shown[["provider_name", "treatment_function_name", "Random Forest", "target_breach_52w_rate"]]
-table = table.rename(columns={"Random Forest": "forecast", "target_breach_52w_rate": "observed"})
+table = shown[["provider_name", "treatment_function_name", primary, "target_breach_52w_rate"]]
+table = table.rename(columns={primary: "forecast", "target_breach_52w_rate": "observed"})
 st.dataframe(table.style.format({"forecast": "{:.2%}", "observed": "{:.2%}"}), use_container_width=True, hide_index=True)

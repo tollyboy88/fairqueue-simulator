@@ -1,9 +1,14 @@
-# Data: keep structure, ignore heavy raw/interim/processed payloads
+# Local-only data and provenance
 Data.zip
 _staging/
-data/raw/
-data/interim/
-data/processed/*.parquet
+data/
+
+# Local-only journal package and its build helpers
+submission/
+tools/
+src/13_make_paper_outputs.py
+outputs/figures/
+outputs/tables/
 
 # Python
 __pycache__/
@@ -16,7 +21,6 @@ venv/
 .DS_Store
 .streamlit/secrets.toml
 
-# Local recovery archive and rendered proof images
+# Local recovery archive
 archive/
-submission/Health_Systems/_rendered/
 **/~$*.docx

@@ -18,7 +18,6 @@ STEPS = [
     "10_equity_constrained_ranking.py",
     "11_ablation_analysis.py",
     "12_robustness_analysis.py",
-    "13_make_paper_outputs.py",
     "14_build_dashboard.py",
 ]
 
@@ -39,5 +38,7 @@ for s in steps:
 print("\nPipeline complete. View results:")
 print("  - outputs/FairQueue_2_Dashboard.html")
 print("  - outputs/metrics/test_model_metrics.csv")
-print("  - outputs/metrics/equity_utility_tradeoff.csv")
+print("  - outputs/metrics/equity_pressure_capture_frontier.csv")
+print("  - outputs/metrics/paired_bootstrap_differences.csv")
+print("  - outputs/metrics/provider_cap_sensitivity.csv")
 print("  - streamlit run app/streamlit_app.py")

@@ -10,7 +10,15 @@ import data_access as da
 st.title("Held-out forecast overview")
 st.caption("Feature months July 2025–March 2026; target months October 2025–June 2026.")
 monthly = da.metric("monthly_test_metrics.csv")
-models = st.multiselect("Models", monthly.model.unique(), default=["Random Forest", "Persistence"])
+specification = da.specification()
+models = st.multiselect(
+    "Models",
+    monthly.model.unique(),
+    default=[
+        specification["primary_forecaster"],
+        specification["selected_learned_model"],
+    ],
+)
 metric = st.selectbox("Metric", ["rmse", "mae", "r2", "recall_at_20", "ndcg_at_20"])
 shown = monthly[monthly.model.isin(models)]
 fig = px.line(shown, x="target_month", y=metric, color="model", markers=True)

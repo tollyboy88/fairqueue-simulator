@@ -7,12 +7,16 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from sklearn.metrics import ndcg_score
 
 sys.path.append(str(Path(__file__).resolve().parent))
 import predictor as forecasting  # noqa: E402
 from utils import OUTPUTS, PROCESSED  # noqa: E402
 
-BOOTSTRAP_REPLICATES = 100
+BOOTSTRAP_REPLICATES = 1_000
+BOOTSTRAP_METRICS = (
+    "mae", "rmse", "r2", "spearman", "recall_at_20", "ndcg_at_20"
+)
 
 
 def model_columns(frame: pd.DataFrame) -> list[str]:
@@ -47,24 +51,60 @@ def monthly_metrics(frame: pd.DataFrame, models: list[str]) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def cluster_bootstrap(frame: pd.DataFrame, models: list[str]) -> pd.DataFrame:
+def cluster_bootstrap(
+    frame: pd.DataFrame,
+    models: list[str],
+    learned_model: str,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     rng = np.random.default_rng(20260905)
-    providers = frame.provider_code.drop_duplicates().to_numpy()
-    distributions = {(model, metric): [] for model in models for metric in (
-        "mae", "rmse", "r2", "spearman", "recall_at_20", "ndcg_at_20"
-    )}
-    groups = {provider: group for provider, group in frame.groupby("provider_code")}
+    providers, provider_index = np.unique(
+        frame.provider_code.to_numpy(), return_inverse=True
+    )
+    distributions = {
+        (model, metric): [] for model in models for metric in BOOTSTRAP_METRICS
+    }
+    row_numbers = np.arange(len(frame))
+    true = frame[forecasting.TARGET].to_numpy(dtype=float)
+    predictions = {
+        model: frame[model].to_numpy(dtype=float) for model in models
+    }
+    month_rows = [
+        group.index.to_numpy()
+        for _, group in frame.reset_index(drop=True).groupby("target_date")
+    ]
+
+    def evaluate_resample(model: str, weights: np.ndarray) -> dict[str, float]:
+        replicated_rows = np.repeat(row_numbers, weights)
+        result = forecasting.point_metrics(
+            true[replicated_rows], predictions[model][replicated_rows]
+        )
+        recalls, ndcgs = [], []
+        for rows in month_rows:
+            expanded = np.repeat(rows, weights[rows])
+            if len(expanded) < 2:
+                continue
+            observed = true[expanded]
+            predicted = predictions[model][expanded]
+            k = min(20, len(expanded))
+            actual_order = np.argsort(-observed, kind="stable")[:k]
+            predicted_order = np.argsort(-predicted, kind="stable")[:k]
+            recalls.append(
+                len(set(actual_order.tolist()) & set(predicted_order.tolist())) / k
+            )
+            ndcgs.append(
+                float(ndcg_score(observed.reshape(1, -1), predicted.reshape(1, -1), k=k))
+            )
+        result["recall_at_20"] = float(np.mean(recalls))
+        result["ndcg_at_20"] = float(np.mean(ndcgs))
+        return result
+
     for _ in range(BOOTSTRAP_REPLICATES):
-        sampled = rng.choice(providers, size=len(providers), replace=True)
-        pieces = []
-        for occurrence, provider in enumerate(sampled):
-            piece = groups[provider].copy()
-            piece.index = [f"{occurrence}:{idx}" for idx in piece.index]
-            pieces.append(piece)
-        replicate = pd.concat(pieces)
+        sampled = rng.integers(0, len(providers), size=len(providers))
+        provider_weights = np.bincount(sampled, minlength=len(providers))
+        row_weights = provider_weights[provider_index]
         for model in models:
-            result = forecasting.evaluate(replicate, model)
-            for metric in ("mae", "rmse", "r2", "spearman", "recall_at_20", "ndcg_at_20"):
+            result = evaluate_resample(model, row_weights)
+            for metric in BOOTSTRAP_METRICS:
                 distributions[(model, metric)].append(result.get(metric, np.nan))
     rows = []
     for (model, metric), values in distributions.items():
@@ -81,7 +121,27 @@ def cluster_bootstrap(frame: pd.DataFrame, models: list[str]) -> pd.DataFrame:
                 "replicates": BOOTSTRAP_REPLICATES,
             }
         )
-    return pd.DataFrame(rows)
+    paired_rows = []
+    point_results = {model: forecasting.evaluate(frame, model) for model in models}
+    for metric in ("mae", "rmse", "ndcg_at_20"):
+        learned = np.asarray(distributions[(learned_model, metric)], dtype=float)
+        persistence = np.asarray(distributions[("Persistence", metric)], dtype=float)
+        differences = learned - persistence
+        clean = differences[np.isfinite(differences)]
+        paired_rows.append(
+            {
+                "comparison": f"{learned_model} minus Persistence",
+                "metric": metric,
+                "estimate": point_results[learned_model][metric]
+                - point_results["Persistence"][metric],
+                "ci_lower": float(np.quantile(clean, 0.025)),
+                "ci_upper": float(np.quantile(clean, 0.975)),
+                "difference_definition": "selected learned model minus Persistence",
+                "bootstrap_unit": "provider",
+                "replicates": BOOTSTRAP_REPLICATES,
+            }
+        )
+    return pd.DataFrame(rows), pd.DataFrame(paired_rows)
 
 
 def main() -> None:
@@ -90,13 +150,18 @@ def main() -> None:
     output = OUTPUTS / "metrics"
     output.mkdir(parents=True, exist_ok=True)
     monthly_metrics(frame, available_models).to_csv(output / "monthly_test_metrics.csv", index=False)
-    selected = json.loads((output / "selected_model.json").read_text(encoding="utf-8"))[
-        "selected_model"
-    ]
-    intervals = cluster_bootstrap(frame, ["Persistence", selected])
+    specification = json.loads(
+        (output / "selected_model.json").read_text(encoding="utf-8")
+    )
+    selected = specification["primary_forecaster"]
+    learned = specification["selected_learned_model"]
+    intervals, paired = cluster_bootstrap(frame, [selected, learned], learned)
     intervals.to_csv(output / "bootstrap_confidence_intervals.csv", index=False)
-    summary = intervals[intervals.model.isin(["Persistence", selected])]
+    paired.to_csv(output / "paired_bootstrap_differences.csv", index=False)
+    summary = intervals[intervals.model.isin([selected, learned])]
     print(summary.round(4).to_string(index=False))
+    print("\nPaired differences (learned minus Persistence)")
+    print(paired.round(4).to_string(index=False))
 
 
 if __name__ == "__main__":

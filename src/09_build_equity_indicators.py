@@ -18,7 +18,7 @@ def build_indicators(disparities: pd.DataFrame, percentile: float = HIGH_NEED_PE
     result = disparities.copy()
     flags = []
     for dimension in DIMENSIONS:
-        rank = result[dimension].rank(pct=True, method="average")
+        rank = result.groupby("snapshot_date")[dimension].rank(pct=True, method="average")
         result[f"{dimension}_percentile"] = rank
         flag = rank.ge(percentile)
         result[f"high_{dimension}"] = flag
@@ -33,10 +33,9 @@ def main() -> None:
     disparities = pd.read_parquet(PROCESSED / "provider_disparities.parquet")
     result = build_indicators(disparities)
     result.to_parquet(PROCESSED / "equity_indicators.parquet", index=False)
-    print(
-        f"Wrote {len(result)} provider indicators; "
-        f"high-need share={result.high_equity_need.mean():.1%}"
-    )
+    summary = result.groupby("snapshot_date").high_equity_need.mean()
+    print(f"Wrote {len(result)} provider indicators across {len(summary)} snapshots")
+    print(summary.to_string())
 
 
 if __name__ == "__main__":
