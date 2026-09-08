@@ -16,6 +16,7 @@ import pandas as pd
 
 sys.path.append(str(Path(__file__).resolve().parent))
 from utils import INTERIM, PROCESSED, RAW, financial_year, is_total_tfc, month_to_quarter, period_from_text  # noqa: E402
+from publication_dates import RTT_PUBLICATION_DATES, dates_for_months  # noqa: E402
 
 START = pd.Period("2022-04", freq="M")
 END = pd.Period("2026-06", freq="M")
@@ -222,6 +223,9 @@ def main() -> None:
 
     result = pd.concat(frames, ignore_index=True)
     result = result.drop_duplicates(["month", *KEYS]).sort_values(["month", *KEYS])
+    result["rtt_available_date"] = dates_for_months(
+        result["month"], RTT_PUBLICATION_DATES, "RTT"
+    )
     out_interim = INTERIM / "rtt_v2" / "rtt_provider_specialty_month.parquet"
     out_processed = PROCESSED / "rtt_provider_specialty_month.parquet"
     PROCESSED.mkdir(parents=True, exist_ok=True)

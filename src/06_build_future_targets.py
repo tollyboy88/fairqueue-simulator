@@ -36,7 +36,14 @@ def build_targets(features: pd.DataFrame, horizon: int = 3) -> pd.DataFrame:
     base = features.copy()
     base["target_period"] = pd.PeriodIndex(base["month"], freq="M") + horizon
     outcomes = base[
-        [*KEYS, "month", "incomplete_total", "breach_52w_count", "breach_18w_count"]
+        [
+            *KEYS,
+            "month",
+            "rtt_available_date",
+            "incomplete_total",
+            "breach_52w_count",
+            "breach_18w_count",
+        ]
     ].copy()
     outcomes["target_period"] = pd.PeriodIndex(outcomes["month"], freq="M")
     outcomes["target_breach_52w_rate"] = safe_div(
@@ -45,11 +52,17 @@ def build_targets(features: pd.DataFrame, horizon: int = 3) -> pd.DataFrame:
     outcomes["target_breach_18w_rate"] = safe_div(
         outcomes.breach_18w_count, outcomes.incomplete_total
     )
-    outcomes = outcomes.rename(columns={"incomplete_total": "target_incomplete_total"})
+    outcomes = outcomes.rename(
+        columns={
+            "incomplete_total": "target_incomplete_total",
+            "rtt_available_date": "target_available_date",
+        }
+    )
     outcomes = outcomes[
         [
             *KEYS,
             "target_period",
+            "target_available_date",
             "target_incomplete_total",
             "target_breach_52w_rate",
             "target_breach_18w_rate",
@@ -78,6 +91,10 @@ def main() -> None:
     print(f"Wrote {len(result):,} forecast rows to {output}")
     print(result.groupby("split").agg(rows=("month", "size"), months=("month", "nunique")).to_string())
     assert (result.feature_date < result.target_date).all()
+    assert (
+        pd.to_datetime(result.forecast_decision_date)
+        < pd.to_datetime(result.target_available_date)
+    ).all()
 
 
 if __name__ == "__main__":

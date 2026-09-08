@@ -14,7 +14,7 @@ st.subheader("Forecast first; apply equity constraints explicitly")
 
 st.markdown(
     """
-FairQueue forecasts the **provider × specialty 52-week breach rate three months ahead**
+FairQueue forecasts the **provider × specialty 52-week breach rate three reporting months ahead**
 from public NHS data. It then selects a top-*K* monitoring list while allowing a decision
 maker to set a minimum share of selected provider-specialty services associated with
 providers that have high measured equity need.

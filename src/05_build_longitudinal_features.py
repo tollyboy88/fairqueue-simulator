@@ -18,11 +18,33 @@ from utils import PROCESSED, safe_div  # noqa: E402
 KEYS = ["provider_code", "treatment_function_code"]
 
 
+def assert_sources_available(data: pd.DataFrame) -> None:
+    """Reject predictors whose source was unpublished at the forecast decision date."""
+    if data["forecast_decision_date"].isna().any():
+        raise AssertionError("RTT forecast decision date is missing")
+    availability_checks = {
+        "diagnostic_over_6w_rate": "diagnostic_available_date",
+        "bed_occupancy_rate": "bed_available_date",
+        "cancelled_operations": "cancellation_available_date",
+    }
+    for value_column, available_column in availability_checks.items():
+        populated = data[value_column].notna()
+        if data.loc[populated, available_column].isna().any():
+            raise AssertionError(f"{value_column} lacks a publication date")
+        if (
+            pd.to_datetime(data.loc[populated, available_column])
+            > data.loc[populated, "forecast_decision_date"]
+        ).any():
+            raise AssertionError(f"{value_column} is unavailable at forecast time")
+
+
 def build_features(rtt: pd.DataFrame, operational: pd.DataFrame) -> pd.DataFrame:
     data = rtt.copy()
     data["month"] = data["month"].astype(str)
     data = data.merge(operational, on=["provider_code", "month"], how="left")
     data["feature_date"] = pd.PeriodIndex(data["month"], freq="M").to_timestamp("M")
+    data["forecast_decision_date"] = pd.to_datetime(data["rtt_available_date"])
+    assert_sources_available(data)
     data = data.sort_values([*KEYS, "feature_date"]).reset_index(drop=True)
 
     data["breach_18w_rate"] = safe_div(data.breach_18w_count, data.incomplete_total)

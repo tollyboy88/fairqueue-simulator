@@ -10,19 +10,20 @@ special-category personal data are processed.
 RTT monthly releases are harmonised to one provider–treatment-function row per month.
 The target is joined by exact calendar key at month + 3; it is never derived from the
 same row as the predictor. Rows require at least 100 incomplete pathways in both feature
-and target months. DM01 is lagged one month and quarterly beds/cancellations are lagged
-one completed quarter before joining.
+and target months. Each reporting month is paired with its pre-announced official
+publication date. DM01, beds and cancellations are joined only when their recorded
+publication date is on or before the corresponding RTT forecast date.
 
 ## Split contract
 
 Splits are defined by feature date, not by random row sampling; every corresponding
-outcome remains exactly three calendar months later:
+outcome remains exactly three reporting months later:
 
-| Partition | Feature months | Target months | Use |
-|---|---|---|---|
-| Training | April 2022–December 2024 | July 2022–March 2025 | Fit candidates and preprocessors |
-| Validation | January–June 2025 | April–September 2025 | Choose the model family |
-| Test | July 2025–March 2026 | October 2025–June 2026 | One final held-out evaluation |
+| Partition | Feature reporting months | Forecast release dates | Target reporting months | Use |
+|---|---|---|---|---|
+| Training | April 2022–December 2024 | June 2022–February 2025 | July 2022–March 2025 | Fit candidates and preprocessors |
+| Validation | January–June 2025 | March–August 2025 | April–September 2025 | Choose the model family |
+| Test | July 2025–March 2026 | September 2025–14 May 2026 | October 2025–June 2026 | One final held-out evaluation |
 
 All imputers, scalers, encoders, and estimators are fitted on development data only.
 Provider-clustered bootstrap intervals use 1,000 reproducible resamples. The same
@@ -37,7 +38,9 @@ Run `py -m pytest -q`. The tests check:
 - prohibition of future/target fields in the feature matrix;
 - quarterly operational-release lags;
 - train-only preprocessing;
-- availability of equity data on or before the feature-month decision date.
+- exact RTT publication-calendar coverage, including the 14 May 2026 March release;
+- availability of every populated operational input and equity snapshot on or before
+  the forecast decision date.
 
 ## Key outputs
 
@@ -54,11 +57,12 @@ The model artifact records Persistence as the primary validation-selected foreca
 stores the full Random Forest preprocessing-and-estimation pipeline as the selected
 learned comparator in `models/fairqueue_forecaster.joblib`.
 
-The equity illustration uses the original v1 file for the 22 February 2026 WLMDS
-provider-demographics snapshot, published on 12 March 2026. Both dates are retained,
-and eligibility is tested against the 31 March 2026 feature-month decision date rather
-than the June outcome date. Later corrected versions of the February snapshot are not
-substituted into this retrospective decision.
+The June 2026 equity illustration is generated at the 14 May 2026 forecast decision
+date—the official publication date for March 2026 RTT statistics. It uses the WLMDS v2
+file for the 29 March 2026 provider-demographics snapshot, available on 14 May. Snapshot
+date and availability date are retained separately, and the later April release is
+excluded. The code requires every source availability date to be no later than the RTT
+forecast date, rather than merely earlier than the outcome month.
 
 ## Determinism and environment
 

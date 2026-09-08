@@ -16,6 +16,12 @@ import pandas as pd
 
 sys.path.append(str(Path(__file__).resolve().parent))
 from utils import INTERIM, PROCESSED, RAW, period_from_text  # noqa: E402
+from publication_dates import (  # noqa: E402
+    BED_PUBLICATION_DATES,
+    CANCELLATION_PUBLICATION_DATES,
+    DIAGNOSTIC_PUBLICATION_DATES,
+    RTT_PUBLICATION_DATES,
+)
 
 START = pd.Period("2022-04", freq="M")
 END = pd.Period("2026-06", freq="M")
@@ -75,19 +81,47 @@ def clean_diagnostics() -> pd.DataFrame:
         available_month = source_month + 1
         if available_month <= END:
             grouped["month"] = str(available_month)
-            rows.append(grouped[["provider_code", "month", "diagnostic_over_6w_rate"]])
+            grouped["diagnostic_available_date"] = DIAGNOSTIC_PUBLICATION_DATES[
+                source_month
+            ]
+            if grouped["diagnostic_available_date"].iloc[0] > RTT_PUBLICATION_DATES[
+                available_month
+            ]:
+                raise AssertionError("Diagnostic input is unavailable at forecast time")
+            rows.append(
+                grouped[
+                    [
+                        "provider_code",
+                        "month",
+                        "diagnostic_over_6w_rate",
+                        "diagnostic_available_date",
+                    ]
+                ]
+            )
     return pd.concat(rows, ignore_index=True)
 
 
-def expand_completed_quarter(frame: pd.DataFrame, date_column: str) -> pd.DataFrame:
+def expand_completed_quarter(
+    frame: pd.DataFrame,
+    date_column: str,
+    publication_dates: dict[pd.Period, pd.Timestamp] | None = None,
+    availability_column: str | None = None,
+) -> pd.DataFrame:
     expanded = []
     for _, row in frame.iterrows():
         period = pd.Timestamp(row[date_column]).to_period("M")
+        available_date = publication_dates.get(period) if publication_dates else None
+        if publication_dates is not None and available_date is None:
+            continue
         for offset in (1, 2, 3):
             month = period + offset
             if START <= month <= END:
+                if available_date is not None and available_date > RTT_PUBLICATION_DATES[month]:
+                    continue
                 copy = row.copy()
                 copy["month"] = str(month)
+                if availability_column is not None:
+                    copy[availability_column] = available_date
                 expanded.append(copy)
     return pd.DataFrame(expanded).drop(columns=date_column)
 
@@ -117,6 +151,8 @@ def clean_beds() -> pd.DataFrame:
     historical = expand_completed_quarter(
         data[["provider_code", "Effective_Snapshot_Date", "bed_occupancy_rate"]],
         "Effective_Snapshot_Date",
+        BED_PUBLICATION_DATES,
+        "bed_available_date",
     )
     workbook_rows = []
     for path in (RAW / "beds_kh03").rglob("*Open-Overnight*20*.xlsx"):
@@ -158,6 +194,8 @@ def clean_beds() -> pd.DataFrame:
         recent = expand_completed_quarter(
             pd.concat(workbook_rows, ignore_index=True),
             "Effective_Snapshot_Date",
+            BED_PUBLICATION_DATES,
+            "bed_available_date",
         )
         historical = pd.concat([historical, recent], ignore_index=True)
         historical = (
@@ -228,7 +266,12 @@ def clean_cancellations() -> pd.DataFrame:
     combined = combined.groupby(["provider_code", "quarter_end"], as_index=False)[
         ["cancelled_operations", "cancel_28day_breaches"]
     ].sum()
-    return expand_completed_quarter(combined, "quarter_end")
+    return expand_completed_quarter(
+        combined,
+        "quarter_end",
+        CANCELLATION_PUBLICATION_DATES,
+        "cancellation_available_date",
+    )
 
 
 def main() -> None:

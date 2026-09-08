@@ -23,6 +23,7 @@ import pandas as pd
 
 sys.path.append(str(Path(__file__).resolve().parent))
 from utils import RAW, ROOT, period_from_text  # noqa: E402
+from publication_dates import RTT_PUBLICATION_DATES  # noqa: E402
 
 START = pd.Period("2022-04", freq="M")
 END = pd.Period("2026-06", freq="M")
@@ -39,12 +40,26 @@ DM01_PAGES = [
     f"monthly-diagnostics-data-{year}/"
     for year in ("2022-23", "2023-24", "2024-25", "2025-26", "2026-27")
 ]
-WLMDS_GEOGRAPHY_URL = (
-    "https://www.england.nhs.uk/statistics/wp-content/uploads/sites/2/2026/03/"
-    "WLMDS-Demographics-Geography-to-22-February-2026-v1.csv"
+WLMDS_RELEASES = (
+    (
+        "https://www.england.nhs.uk/statistics/wp-content/uploads/sites/2/2026/03/"
+        "WLMDS-Demographics-Geography-to-22-February-2026-v1.csv",
+        pd.Timestamp("2026-02-22"),
+        pd.Timestamp("2026-03-12"),
+    ),
+    (
+        "https://www.england.nhs.uk/statistics/wp-content/uploads/sites/2/2026/05/"
+        "WLMDS-Demographics-Geography-to-29-March-2026-v2.csv",
+        pd.Timestamp("2026-03-29"),
+        pd.Timestamp("2026-05-14"),
+    ),
+    (
+        "https://www.england.nhs.uk/statistics/wp-content/uploads/sites/2/2026/06/"
+        "WLMDS-Demographics-Geography-to-26-April-2026-v1.csv",
+        pd.Timestamp("2026-04-26"),
+        pd.Timestamp("2026-06-11"),
+    ),
 )
-WLMDS_SNAPSHOT_DATE = pd.Timestamp("2026-02-22")
-WLMDS_AVAILABLE_DATE = pd.Timestamp("2026-03-12")
 
 
 class LinkParser(HTMLParser):
@@ -152,16 +167,16 @@ def download(source: Source, force: bool = False) -> Path:
     return target
 
 
-def download_wlmds_geography(force: bool = False) -> Path:
+def download_wlmds_geography(url: str, snapshot_date: pd.Timestamp, force: bool = False) -> Path:
     folder = RAW / "wlmds" / "WLMDS"
     folder.mkdir(parents=True, exist_ok=True)
-    target = folder / Path(WLMDS_GEOGRAPHY_URL).name
+    target = folder / Path(url).name
     if target.exists() and not force:
-        print(f"reuse wlmds {WLMDS_SNAPSHOT_DATE.date()}: {target.name}")
+        print(f"reuse wlmds {snapshot_date.date()}: {target.name}")
         return target
     partial = target.with_suffix(".part")
-    print(f"download wlmds {WLMDS_SNAPSHOT_DATE.date()}: {WLMDS_GEOGRAPHY_URL}")
-    request = urllib.request.Request(WLMDS_GEOGRAPHY_URL, headers={"User-Agent": USER_AGENT})
+    print(f"download wlmds {snapshot_date.date()}: {url}")
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(request, timeout=180) as response, partial.open("wb") as output:
         shutil.copyfileobj(response, output)
     partial.replace(target)
@@ -201,19 +216,24 @@ def main() -> None:
             "bytes": path.stat().st_size,
             "sha256": sha256(path),
             "retrieved_utc": retrieved,
-            "available_date": "",
+            "available_date": (
+                RTT_PUBLICATION_DATES[source.month].date().isoformat()
+                if source.dataset == "rtt"
+                else ""
+            ),
         })
-    wlmds_path = download_wlmds_geography(force=args.force)
-    rows.append({
-        "dataset": "wlmds_geography",
-        "month": str(WLMDS_SNAPSHOT_DATE.to_period("M")),
-        "source_url": WLMDS_GEOGRAPHY_URL,
-        "local_path": wlmds_path.relative_to(ROOT).as_posix(),
-        "bytes": wlmds_path.stat().st_size,
-        "sha256": sha256(wlmds_path),
-        "retrieved_utc": retrieved,
-        "available_date": WLMDS_AVAILABLE_DATE.date().isoformat(),
-    })
+    for url, snapshot_date, available_date in WLMDS_RELEASES:
+        wlmds_path = download_wlmds_geography(url, snapshot_date, force=args.force)
+        rows.append({
+            "dataset": "wlmds_geography",
+            "month": str(snapshot_date.to_period("M")),
+            "source_url": url,
+            "local_path": wlmds_path.relative_to(ROOT).as_posix(),
+            "bytes": wlmds_path.stat().st_size,
+            "sha256": sha256(wlmds_path),
+            "retrieved_utc": retrieved,
+            "available_date": available_date.date().isoformat(),
+        })
     manifest = ROOT / "data" / "source_manifest.csv"
     manifest.parent.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(rows).sort_values(["dataset", "month"]).to_csv(manifest, index=False)

@@ -64,7 +64,9 @@ def main() -> None:
 
     identifiers = [
         "feature_date",
+        "forecast_decision_date",
         "target_date",
+        "target_available_date",
         "month",
         "provider_code",
         "provider_name",

@@ -2,7 +2,7 @@
 
 FairQueue 2.0 is a research pipeline for forecasting NHS elective-care pressure and
 examining transparent equity constraints. It predicts the provider–specialty 52-week
-incomplete-pathway breach rate exactly three months ahead, then builds a top-*K*
+incomplete-pathway breach rate exactly three reporting months ahead, then builds a top-*K*
 monitoring list with an optional minimum share of provider-specialty services associated
 with providers that have high measured equity need.
 
@@ -26,13 +26,15 @@ After the official source files have been downloaded once, use
 
 - Data: 51 monthly NHS releases, April 2022–June 2026, with a SHA-256 source manifest.
 - Unit: provider × treatment function × feature month.
-- Outcome: 52-week breach rate at feature month + 3.
+- Outcome: 52-week breach rate at reporting month + 3.
+- Forecast date: the official RTT publication date for the feature reporting month;
+  every joined input must have been published on or before that date.
 - Training features: April 2022–December 2024; targets are three months later.
 - Validation features: January–June 2025; used for model selection.
 - Locked test features: July 2025–March 2026; targets October 2025–June 2026.
-- Equity illustration: top-20 June 2026 list using the original v1 release of the
-  22 February 2026 WLMDS snapshot, published 12 March and therefore available at the
-  31 March decision date. Later revisions are excluded from this retrospective decision.
+- Equity illustration: top-20 June 2026 list produced on 14 May 2026, when March 2026
+  RTT statistics became available, using the 29 March 2026 WLMDS v2 release available
+  that day. The April WLMDS release was not yet available and is excluded.
 
 Persistence achieved the lowest validation MAE and is the primary forecaster. Random
 Forest is the selected learned comparator; it achieved test RMSE 0.0143 (1.43 percentage

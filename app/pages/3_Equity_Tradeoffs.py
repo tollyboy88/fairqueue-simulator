@@ -10,7 +10,7 @@ import data_access as da
 st.title("Equity–pressure-capture frontier")
 st.caption(
     "Top-20 June 2026 provider-specialty service list using the latest WLMDS evidence "
-    "available by the 31 March 2026 decision date. High equity need means the associated "
+    "available by the 14 May 2026 forecast decision date. High equity need means the associated "
     "provider is in the top quartile for at least one disparity dimension."
 )
 tradeoff = da.metric("equity_pressure_capture_frontier.csv")

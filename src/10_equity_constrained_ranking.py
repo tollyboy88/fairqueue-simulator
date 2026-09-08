@@ -135,7 +135,7 @@ def main() -> None:
     equity = pd.read_parquet(PROCESSED / "equity_indicators.parquet")
     latest_target = predictions.target_date.max()
     frame = predictions[predictions.target_date == latest_target].copy()
-    decision_dates = pd.to_datetime(frame.feature_date).drop_duplicates()
+    decision_dates = pd.to_datetime(frame.forecast_decision_date).drop_duplicates()
     if len(decision_dates) != 1:
         raise RuntimeError("The policy illustration must have one decision date")
     decision_date = decision_dates.iloc[0]

@@ -21,6 +21,10 @@ SNAPSHOT_RELEASES = {
         "available_date": pd.Timestamp("2026-03-12"),
         "filename": "WLMDS-Demographics-Geography-to-22-February-2026-v1.csv",
     },
+    pd.Timestamp("2026-03-29"): {
+        "available_date": pd.Timestamp("2026-05-14"),
+        "filename": "WLMDS-Demographics-Geography-to-29-March-2026-v2.csv",
+    },
     pd.Timestamp("2026-04-26"): {
         "available_date": pd.Timestamp("2026-06-11"),
         "filename": "WLMDS-Demographics-Geography-to-26-April-2026-v1.csv",

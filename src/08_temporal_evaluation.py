@@ -22,7 +22,9 @@ BOOTSTRAP_METRICS = (
 def model_columns(frame: pd.DataFrame) -> list[str]:
     excluded = set(forecasting.predictor_columns(forecasting.FULL_FEATURES)) | {
         "feature_date",
+        "forecast_decision_date",
         "target_date",
+        "target_available_date",
         "month",
         "provider_code",
         "provider_name",
